@@ -5,7 +5,6 @@ const PORT = 3000
 
 app.use(express.json())
 
-// MySQL bağlantısı
 const db = mysql.createConnection({
   host: 'localhost',
   user: 'root',
@@ -36,10 +35,9 @@ app.post('/products', (req, res) => {
     return res.status(400).json({ error: 'Sale date gerekli.' })
   }
 
-  // Ürünleri oluştur
   const products = []
   for (let i = 0; i < count; i++) {
-    const productId = uuidv4() // Her ürün için benzersiz ID oluştur
+    const productId = uuidv4()
 
     const product = {
       id: productId,
@@ -47,15 +45,14 @@ app.post('/products', (req, res) => {
       size,
       price,
       city,
-      sale_date, // sale_date ekleniyor
+      sale_date,
     }
 
     products.push(product)
   }
 
-  // Ürünleri veritabanına ekle
   const insertQuery = `
-    INSERT INTO products (id, model, size, price, city, sale_date)
+    INSERT INTO products (id, model, size, city, sale_date)
     VALUES ?
   `
 
@@ -63,7 +60,6 @@ app.post('/products', (req, res) => {
     product.id,
     product.model,
     product.size,
-    product.price,
     product.city,
     product.sale_date,
   ])
@@ -192,16 +188,19 @@ app.post('/poll/:pollID', (req, res) => {
 })
 
 app.post('/dashboard', (req, res) => {
-  const { city, age_range, type, size, gender } = req.body
+  const { city, age_range, model, size, gender } = req.body
 
   let query = `
     SELECT
         DATE_FORMAT(products.sale_date, '%Y-%m') AS month,
         AVG(polls.true_false_question_1) AS avg_question_1,
         AVG(polls.true_false_question_2) AS avg_question_2,
+        AVG(polls.true_false_question_3) AS avg_question_3,
+        AVG(polls.true_false_question_4) AS avg_question_4,
+        AVG(polls.true_false_question_5) AS avg_question_5,
+        AVG(polls.true_false_question_6) AS avg_question_6,
         AVG(polls.expected_price) AS avg_expected_price,
-        AVG(polls.rating) AS avg_rating,
-        AVG(products.price) AS avg_price
+        AVG(polls.rating) AS avg_rating
     FROM
         polls
     JOIN
@@ -219,16 +218,16 @@ app.post('/dashboard', (req, res) => {
     query += ' AND YEAR(CURDATE()) - YEAR(client_birthdate) BETWEEN ? AND ?'
     filters.push(...age_range.split('-').map(Number))
   }
-  if (type) {
-    query += ' AND products.model = ?'
-    filters.push(type)
+  if (model) {
+    query += ' AND model = ?'
+    filters.push(model)
   }
   if (size) {
     query += ' AND size = ?'
     filters.push(size)
   }
   if (gender) {
-    query += ' AND gender = ?'
+    query += ' AND client_gender = ?'
     filters.push(gender)
   }
 
@@ -245,6 +244,208 @@ app.post('/dashboard', (req, res) => {
     }
     res.json(results)
   })
+})
+
+app.post('/poll/create/:count', async (req, res) => {
+  const count = parseInt(req.params.count)
+
+  if (isNaN(count) || count <= 0) {
+    return res.status(400).json({
+      error: 'Invalid count parameter. It must be a positive integer.',
+    })
+  }
+
+  const cities = [
+    'Adana',
+    'Adıyaman',
+    'Afyonkarahisar',
+    'Ağrı',
+    'Aksaray',
+    'Amasya',
+    'Ankara',
+    'Antalya',
+    'Ardahan',
+    'Artvin',
+    'Aydın',
+    'Balıkesir',
+    'Bartın',
+    'Batman',
+    'Bayburt',
+    'Bilecik',
+    'Bingöl',
+    'Bitlis',
+    'Bolu',
+    'Burdur',
+    'Bursa',
+    'Çanakkale',
+    'Çankırı',
+    'Çorum',
+    'Denizli',
+    'Diyarbakır',
+    'Düzce',
+    'Edirne',
+    'Elazığ',
+    'Erzincan',
+    'Erzurum',
+    'Eskişehir',
+    'Gaziantep',
+    'Giresun',
+    'Gümüşhane',
+    'Hakkari',
+    'Hatay',
+    'Iğdır',
+    'Isparta',
+    'İstanbul',
+    'İzmir',
+    'Kahramanmaraş',
+    'Karabük',
+    'Karaman',
+    'Kars',
+    'Kastamonu',
+    'Kayseri',
+    'Kırıkkale',
+    'Kırklareli',
+    'Kırşehir',
+    'Kilis',
+    'Kocaeli',
+    'Konya',
+    'Kütahya',
+    'Malatya',
+    'Manisa',
+    'Mardin',
+    'Mersin',
+    'Muğla',
+    'Muş',
+    'Nevşehir',
+    'Niğde',
+    'Ordu',
+    'Osmaniye',
+    'Rize',
+    'Sakarya',
+    'Samsun',
+    'Siirt',
+    'Sinop',
+    'Sivas',
+    'Şanlıurfa',
+    'Şırnak',
+    'Tekirdağ',
+    'Tokat',
+    'Trabzon',
+    'Tunceli',
+    'Uşak',
+    'Van',
+    'Yalova',
+    'Yozgat',
+    'Zonguldak',
+  ]
+  const models = [
+    'sarı mont',
+    'kırmızı kazak',
+    'kot pantolon',
+    'converse ayakkabı',
+    'gri atkı',
+  ]
+  const sizes = ['xxl', 'xl', 'l', 'm', 's', 'xs']
+  const genders = ['male', 'female', 'other']
+  const modelPrices = {
+    'sarı mont': Math.floor(Math.random() * (1000 - 500 + 1)) + 500,
+    'kırmızı kazak': Math.floor(Math.random() * (500 - 100 + 1)) + 100,
+    'kot pantolon': Math.floor(Math.random() * (700 - 300 + 1)) + 300,
+    'converse ayakkabı': Math.floor(Math.random() * (800 - 400 + 1)) + 400,
+    'gri atkı': Math.floor(Math.random() * (300 - 100 + 1)) + 100,
+  }
+
+  const randomDate = (start, end) => {
+    return new Date(
+      start.getTime() + Math.random() * (end.getTime() - start.getTime()),
+    )
+  }
+
+  const products = []
+  const polls = []
+
+  for (let i = 0; i < count; i++) {
+    const model = models[Math.floor(Math.random() * models.length)]
+    const price = modelPrices[model]
+    const id = uuidv4()
+
+    const product = {
+      id: id,
+      model,
+      size: sizes[Math.floor(Math.random() * sizes.length)],
+      sale_date: randomDate(new Date(2024, 0, 1), new Date(2024, 11, 31))
+        .toISOString()
+        .split('T')[0],
+      city: cities[Math.floor(Math.random() * cities.length)],
+    }
+
+    products.push(product)
+
+    // Poll için soruları bağımsız olarak her seferinde farklı değerlerle üretiyoruz
+    const poll = {
+      id: id,
+      true_false_question_1: Math.random() > 0.5,
+      true_false_question_2: Math.random() > 0.5,
+      true_false_question_3: Math.random() > 0.5,
+      true_false_question_4: Math.random() > 0.5,
+      true_false_question_5: Math.random() > 0.5,
+      true_false_question_6: Math.random() > 0.5,
+      client_gender: genders[Math.floor(Math.random() * genders.length)],
+      client_birthdate: randomDate(new Date(1945, 0, 1), new Date(2005, 11, 31))
+        .toISOString()
+        .split('T')[0],
+      rating: Math.floor(Math.random() * 5) + 1,
+      expected_price: price + (Math.random() > 0.5 ? 100 : -100),
+    }
+    polls.push(poll)
+  }
+
+  try {
+    // Inserting products
+    for (const product of products) {
+      await db.execute(
+        `INSERT INTO products (id, model, size, sale_date, city) 
+         VALUES (?, ?, ?, ?, ?)`,
+        [
+          product.id,
+          product.model,
+          product.size,
+          product.sale_date,
+          product.city,
+        ],
+      )
+    }
+    // Inserting polls
+    for (const poll of polls) {
+      await db.execute(
+        `INSERT INTO polls (
+          id, true_false_question_1, true_false_question_2, true_false_question_3, 
+          true_false_question_4, true_false_question_5, true_false_question_6, 
+          client_gender, client_birthdate, rating, expected_price
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          poll.id,
+          poll.true_false_question_1,
+          poll.true_false_question_2,
+          poll.true_false_question_3,
+          poll.true_false_question_4,
+          poll.true_false_question_5,
+          poll.true_false_question_6,
+          poll.client_gender,
+          poll.client_birthdate,
+          poll.rating,
+          poll.expected_price,
+        ],
+      )
+    }
+
+    res.json({ polls, products })
+  } catch (error) {
+    console.error('Database error:', error)
+    res.status(500).json({ error: 'An error occurred while saving data.' })
+  } finally {
+    db.end()
+  }
 })
 
 app.listen(PORT, () => {
