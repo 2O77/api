@@ -108,7 +108,7 @@ app.get('/admins', (req, res) => {
       return res.status(500).json({ error: 'Veritabanı hatası.' })
     }
     if (results.length === 0) {
-      return res.status(404).json({ message: 'Admin bulunamadı.' })
+      return res.status(404).json({ message: 'İsim veya şifre yanlış.' })
     }
 
     res.json({
