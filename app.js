@@ -99,6 +99,24 @@ app.get('/poll/:pollID', (req, res) => {
   })
 })
 
+app.get('/admins', (req, res) => {
+  const { username, password } = req.body
+
+  const query = 'SELECT * FROM admins WHERE username = ? AND password = ?'
+  db.query(query, [username, password], (err, results) => {
+    if (err) {
+      return res.status(500).json({ error: 'Veritabanı hatası.' })
+    }
+    if (results.length === 0) {
+      return res.status(404).json({ message: 'Admin bulunamadı.' })
+    }
+
+    res.json({
+      message: 'Admin bulundu.',
+    })
+  })
+})
+
 app.post('/poll/:pollID', (req, res) => {
   const { pollID } = req.params
   const {
