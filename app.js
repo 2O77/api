@@ -1,15 +1,17 @@
 const express = require('express')
 const mysql = require('mysql2')
 const app = express()
+const cors = require('cors')
 const PORT = 3000
 const jwt = require('jsonwebtoken')
 
 app.use(express.json())
+app.use(cors())
 
 const db = mysql.createConnection({
   host: 'localhost',
   user: 'root',
-  password: '',
+  password: '354657',
   database: 'clothing_app',
 })
 
