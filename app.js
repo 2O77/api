@@ -2,6 +2,7 @@ const express = require('express')
 const mysql = require('mysql2')
 const app = express()
 const PORT = 3000
+const jwt = require('jsonwebtoken')
 
 app.use(express.json())
 
@@ -99,7 +100,9 @@ app.get('/poll/:pollID', (req, res) => {
   })
 })
 
-app.get('/admins', (req, res) => {
+const secretKey = 'my_secret_key'
+
+app.post('/admins', (req, res) => {
   const { username, password } = req.body
 
   const query = 'SELECT * FROM admins WHERE username = ? AND password = ?'
@@ -111,8 +114,45 @@ app.get('/admins', (req, res) => {
       return res.status(404).json({ message: 'İsim veya şifre yanlış.' })
     }
 
+    const payload = { id: results[0].user_id, username: results[0].username }
+    const token = jwt.sign(payload, secretKey, { expiresIn: '1h' })
+
+    console.log('Giriş başarılı:', results[0].username, results[0].user_id)
+
     res.json({
-      message: 'Admin bulundu.',
+      message: 'Giriş başarılı.',
+      token: token,
+    })
+  })
+})
+
+app.get('/admins', (req, res) => {
+  const token =
+    req.headers.authorization && req.headers.authorization.split(' ')[1]
+
+  if (!token) {
+    return res.status(401).json({ error: 'Token gerekli.' })
+  }
+
+  jwt.verify(token, secretKey, (err, decoded) => {
+    if (err) {
+      return res.status(401).json({ error: 'Geçersiz token.' })
+    }
+
+    const query = 'SELECT * FROM admins WHERE user_id = ?'
+    db.query(query, [decoded.id], (err, results) => {
+      if (err) {
+        return res.status(500).json({ error: 'Veritabanı hatası.' })
+      }
+
+      if (results.length === 0) {
+        return res.status(404).json({ message: 'Kullanıcı bulunamadı.' })
+      }
+
+      res.json({
+        id: results[0].user_id,
+        username: results[0].username,
+      })
     })
   })
 })
@@ -141,21 +181,18 @@ app.post('/poll/:pollID', (req, res) => {
     return res.status(400).json({ error: 'Eksik veya hatalı veri gönderildi.' })
   }
 
-  // PollID'nin daha önce var olup olmadığını kontrol et
   const checkPollExistsQuery = 'SELECT * FROM polls WHERE id = ?'
   db.query(checkPollExistsQuery, [pollID], (err, results) => {
     if (err) {
       return res.status(500).json({ error: 'Veritabanı hatası.' })
     }
 
-    // Eğer anket zaten varsa, hata mesajı döndür
     if (results.length > 0) {
       return res
         .status(403)
         .json({ error: 'Çözdüğünüz anketi bir daha çözemezsiniz.' })
     }
 
-    // Anketi oluştur
     const createPollQuery = `
       INSERT INTO polls (
         id, 
